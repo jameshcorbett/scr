@@ -4,6 +4,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "axl.h"
 
@@ -15,10 +16,10 @@
 
 extern int axl_socket_server_run(int port);
 
-int run_service()
+int run_service(int port)
 {
 	fprintf(stdout, "Service Started!\n");
-	int rval = axl_socket_server_run(2000);
+	int rval = axl_socket_server_run(port);
 	fprintf(stdout, "Service Ending!\n");
 	return rval;
 }
@@ -38,21 +39,26 @@ int run_client()
 	return rval;
 }
 
-int main(int ac, char **av)
+int main(int argc, char **argv)
 {
 	fprintf(stderr, "Just testing stderr...\n");
-	if (ac != 2) {
-		fprintf(stderr, "Command count (%d) incorrect:\nUsage: test_client_server --<client|server>\n", ac);
+	int port = 0;
+	if (argc != 3) {
+		fprintf(stderr, "Command count (%d) incorrect:\nUsage: test_client_server --<client|server> port\n", argc);
 		return AXLCS_CLIENT_INVALID;
 	}
 
-	if (strcmp("--server", av[1]) == 0) {
-		return run_service();
+	if (strcmp("--server", argv[1]) == 0) {
+		if ((port = atoi(argv[2])) <= 0){
+			fprintf(stderr, "Port number (%s) incorrect:\nUsage: test_client_server --<client|server> port\n", argv[2]);
+			return AXLCS_CLIENT_INVALID;
+		}
+		return run_service(port);
 	}
-	else if (strcmp("--client", av[1]) == 0) {
+	else if (strcmp("--client", argv[1]) == 0) {
 		return run_client();
 	}
 
-	fprintf(stderr, "Unknown Argument (%s) incorrect:\nUsage: test_client_server --<client|server>\n", av[1]);
+	fprintf(stderr, "Unknown Argument (%s) incorrect:\nUsage: test_client_server --<client|server> port\n", argv[1]);
 	return AXLCS_CLIENT_INVALID;
 }

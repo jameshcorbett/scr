@@ -24,14 +24,15 @@ def wait_for_completion(procname, proc, wait_time):
 def main():
     errors = 0
     # Launch the server then the client
+    port = "2000"
     test_env = {
         "AXL_DEBUG": "44",
         "AXL_SERVICE_HOST": "localhost",
-        "AXL_SERVICE_PORT": "2000",
+        "AXL_SERVICE_PORT": port,
     }
     test_file = pathlib.Path(__file__).absolute().parent / "./test_client_server"
     server = sp.Popen(
-        [test_file, "--server"],
+        [test_file, "--server", port],
         env=dict(os.environ, **test_env),
         stdout=sp.PIPE,
         stderr=sp.PIPE,
@@ -39,7 +40,7 @@ def main():
     time.sleep(2)  # Give server a chance to start
 
     client = sp.Popen(
-        [test_file, "--client"],
+        [test_file, "--client", port],
         env=dict(os.environ, **test_env),
         stdout=sp.PIPE,
         stderr=sp.PIPE,
