@@ -8,7 +8,7 @@
 #
 # option Defaults:
 PROJECT=scr
-BASE_DOCKER_REPO=scr/testenv
+BASE_DOCKER_REPO=libscr/scr
 
 WORKDIR=/usr/src
 IMAGE=bookworm
@@ -113,15 +113,15 @@ if test "$DISTCHECK" = "t"; then
     done
 fi
 
-CONFIGURE_ARGS="-DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug $@ .."
+CONFIGURE_ARGS="-DSCR_RESOURCE_MANAGER=NONE -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug $@ .."
 
 . ${TOP}/src/test/checks-lib.sh
 
 #  NOTE: BASE_IMAGE and IMAGESRC are ignored
 #   unless in flux-core repo
 #
-BUILD_IMAGE=checks-builder:${IMAGE}
-if test "$PROJECT" = "flux-core"; then
+BUILD_IMAGE=${PROJECT}-checks-builder:${IMAGE}
+if test "$PROJECT" = "scr"; then
     DOCKERFILE=$TOP/src/test/docker/checks
 else
     DOCKERFILE=$TOP/src/test/docker/$IMAGE
