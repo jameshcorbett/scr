@@ -2,6 +2,9 @@ FROM ubuntu:noble
 
 LABEL maintainer="James Corbett <corbett8@llnl.gov>"
 
+ARG USER=flux
+ARG UID=1000
+ARG GID=1000
 
 # Utilities
 RUN apt-get update \
@@ -58,3 +61,11 @@ ENV LANG=C.UTF-8
 RUN userdel ubuntu
 # noble defaults to an invalid TZ /UTC
 ENV TZ="America/Los_Angeles"
+
+# copy scripts into image
+COPY src/test/docker/add_docker_user.sh /etc/add_docker_user.sh
+# Add configured user to image with sudo access:
+RUN /etc/add_docker_user.sh
+
+USER $USER
+WORKDIR /home/$USER
