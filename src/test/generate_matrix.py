@@ -27,7 +27,7 @@ DEFAULT_MULTIARCH_PLATFORMS = {
         "timeout_minutes": 90,
         "runner": "ubuntu-24.04-arm",
     },
-    "linux/amd64": {"when": lambda _: True, "runner": "ubuntu-latest"},
+    "linux/amd64": {"when": lambda _: True, "suffix": " - amd64", "runner": "ubuntu-latest"},
 }
 
 
@@ -148,25 +148,8 @@ class BuildMatrix:
 matrix = BuildMatrix()
 
 
-matrix.add_multiarch_build(
-    name="bookworm",
-    default_suffix=" - test-install",
-)
-matrix.add_multiarch_build(
-    name="noble",
-    default_suffix=" - test-install",
-)
-matrix.add_multiarch_build(
-    name="el9",
-    default_suffix=" - test-install",
-)
-matrix.add_multiarch_build(
-    name="alpine",
-    default_suffix=" - test-install",
-)
-matrix.add_multiarch_build(
-    name="fedora40",
-    default_suffix=" - test-install",
-)
+for name in ("bookworm", "noble", "el9", "alpine", "fedora40"):
+    matrix.add_multiarch_build(name=name)
+
 
 print(matrix)
