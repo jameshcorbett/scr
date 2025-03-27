@@ -10,7 +10,7 @@
 PROJECT=scr
 
 WORKDIR=/usr/src
-IMAGE=bookworm
+IMAGE=el9
 JOBS=2
 MOUNT_HOME_ARGS="--volume=$HOME:$HOME -e HOME"
 BUILD_DIR=build
@@ -20,10 +20,10 @@ declare -r prog=${0##*/}
 die() { echo -e "$prog: $@"; exit 1; }
 
 #
-declare -r long_opts="help,quiet,interactive,image:,jobs:,no-cache,no-home,distcheck,tag:,build-directory:,install-only,recheck,unit-test-only,quick-check,platform:,workdir:,system"
-declare -r short_opts="hqIdi:S:j:t:D:Prup:"
+declare -r long_opts="help,quiet,interactive,image:,jobs:,no-cache,no-home,tag:,build-directory:,install-only,recheck,unit-test-only,quick-check,platform:,workdir:,system"
+declare -r short_opts="hqIi:S:j:t:D:Prup:"
 declare usage="
-Usage: $prog [OPTIONS] -- [CONFIGURE_ARGS...]\n\
+Usage: $prog [OPTIONS] -- [CMAKE_ARGS...]\n\
 Build docker image for CI builds, then run tests inside the new\n\
 container as the current user and group.\n\
 \n\
@@ -34,13 +34,11 @@ Options:\n\
      --no-cache                Disable docker caching\n\
      --no-home                 Skip mounting the host home directory\n\
      --install-only            Skip make check, only make install\n\
-     --system                  Run under system instance\n\
  -q, --quiet                   Add --quiet to docker-build\n\
  -t, --tag=TAG                 If checks succeed, tag image as NAME\n\
  -i, --image=NAME              Use base docker image NAME (default=$IMAGE)\n\
  -p, --platform=NAME           Run on alternate platform (if supported)\n\
  -j, --jobs=N                  Value for make -j (default=$JOBS)\n
- -d, --distcheck               Run 'make distcheck' instead of 'make check'\n\
  -r, --recheck                 Run 'make recheck' after failure\n\
  -u, --unit-test-only          Only run unit tests\n\
      --quick-check             Only run 'make check TESTS=' and one basic test\n\
@@ -74,7 +72,6 @@ while true; do
       -p|--platform)               PLATFORM="--platform=$2";   shift 2 ;;
       -j|--jobs)                   JOBS="$2";                  shift 2 ;;
       -I|--interactive)            INTERACTIVE="/bin/bash";    shift   ;;
-      -d|--distcheck)              DISTCHECK=t;                shift   ;;
       -r|--recheck)                RECHECK=t;                  shift   ;;
       -u|--unit-test-only)         UNIT_TEST_ONLY=t;           shift   ;;
       --quick-check)               QUICK_CHECK=t;              shift   ;;
@@ -101,24 +98,10 @@ else
 fi
 DOCKER_BUILD="docker build"
 
-# distcheck incompatible with some configure args
-if test "$DISTCHECK" = "t"; then
-    test "$RECHECK" = "t" && die "--recheck not allowed with --distcheck"
-    for arg in "$@"; do
-        case $arg in
-          --sysconfdir=*|systemdsystemunitdir=*)
-            die "distcheck incompatible with configure arg $arg"
-        esac
-    done
-fi
-
-CONFIGURE_ARGS="-DSCR_RESOURCE_MANAGER=NONE -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug $@ .."
+CMAKE_ARGS="-DSCR_RESOURCE_MANAGER=NONE -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug $@ .."
 
 . ${TOP}/src/test/checks-lib.sh
 
-#  NOTE: BASE_IMAGE and IMAGESRC are ignored
-#   unless in flux-core repo
-#
 BUILD_IMAGE=${PROJECT}-checks-builder:${IMAGE}
 DOCKERFILE=$TOP/src/test/docker/$IMAGE
 
@@ -143,12 +126,10 @@ echo "mounting $TOP as $WORKDIR"
 export PLATFORM
 export PROJECT
 export JOBS
-export DISTCHECK
 export RECHECK
 export UNIT_TEST_ONLY
 export QUICK_CHECK
 export BUILD_DIR
-export COVERAGE
 export chain_lint
 
 if [[ "$INSTALL_ONLY" == "t" ]]; then
@@ -180,12 +161,8 @@ else
         -e CFLAGS \
         -e CPPFLAGS \
         -e GCOV \
-        -e CCACHE_CPP2 \
-        -e CCACHE_READONLY \
-        -e COVERAGE \
         -e TEST_INSTALL \
         -e CPPCHECK \
-        -e DISTCHECK \
         -e RECHECK \
         -e UNIT_TEST_ONLY \
         -e QUICK_CHECK \
@@ -198,14 +175,12 @@ else
         -e PYTHON_VERSION \
         -e PRELOAD \
         -e BUILD_DIR \
-	-e PSM3_HAL \
-	-e PSM3_DEVICES \
         --cap-add SYS_PTRACE \
         --tty \
         ${INTERACTIVE:+--interactive} \
         --network=host \
         ${BUILD_IMAGE} \
-        ${INTERACTIVE:-./src/test/checks_run.sh ${CONFIGURE_ARGS}} \
+        ${INTERACTIVE:-./src/test/checks_run.sh ${CMAKE_ARGS}} \
     || die "docker run failed"
 fi
 
@@ -221,8 +196,7 @@ if test -n "$TAG"; then
 	sh -c "make install && \
                userdel $USER" \
 	|| (docker rm tmp.$$; die "docker run of 'make install' failed")
-    docker commit --change 'ENTRYPOINT [ "/usr/local/sbin/entrypoint.sh" ]' \
-	tmp.$$ $TAG \
+    docker commit tmp.$$ $TAG \
 	|| die "docker commit failed"
     docker rm tmp.$$
     echo "Tagged image $TAG"
