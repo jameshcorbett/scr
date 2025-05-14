@@ -229,6 +229,7 @@ int axl_socket_server_run(int port)
   if (bind(server_socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
     AXL_ABORT(-1, "bind() failed: (%s)", strerror(errno));
   }
+  fprintf(stdout, "Service bound to socket!\n");
 
   if (listen(server_socket, AXL_SOCKET_MAX_CLIENTS) < 0) {
     AXL_ABORT(-1, "listen() failed: (%s)", strerror(errno));
@@ -259,7 +260,7 @@ int axl_socket_server_run(int port)
     }
 
     if (FD_ISSET(server_socket, &readfds)) {
-      AXL_DBG(1, "Accepting new incomming connection");
+      AXL_DBG(1, "Accepting new incoming connection");
       if ((new_socket = accept(server_socket, (struct sockaddr *)&address,
                                                 (socklen_t*)&addrlen)) < 0) {
         AXL_ABORT(-1, "accept() error: (%s)", strerror(errno));
