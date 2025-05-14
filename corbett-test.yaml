@@ -1,0 +1,27 @@
+apiVersion: nnf.cray.hpe.com/v1alpha6
+data:
+  numPorts: 1
+  pinned: false
+  postRunTimeoutSeconds: 300
+  preRunTimeoutSeconds: 300
+  retryLimit: 2
+  spec:
+    containers:
+    - command:
+      - /bin/bash
+      - -c
+      - git clone https://github.com/jameshcorbett/scr.git -b axl-client-server-corbett-2 && cd scr && source /etc/profile.d/modules.sh && module load mpi && rm -rf build && mkdir -p build && cd build && cmake -DSCR_RESOURCE_MANAGER=NONE -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug ..  && make -j install && export AXL_DEBUG=44 && export AXL_SERVICE_HOST=$(hostname) && export AXL_SERVICE_PORT=$NNF_CONTAINER_PORTS && env | grep AXL && ./src/axl/test/test_client_server --server $NNF_CONTAINER_PORTS
+      image: docker.io/libscr/scr:el9
+      name: corbett-test2
+      resources: {}
+  storages:
+  - name: DW_JOB_foo_local_storage
+    optional: false
+  - name: DW_PERSISTENT_foo_persistent_storage
+    optional: true
+  - name: DW_GLOBAL_foo_global_lustre
+    optional: true
+kind: NnfContainerProfile
+metadata:
+  name: corbett-test
+  namespace: nnf-system
