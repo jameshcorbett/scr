@@ -202,6 +202,8 @@ int axl_socket_server_run(int port)
   int max_sd;
   int rval = AXL_FAILURE;
 
+  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+
   axl_service_mode = AXL_SOCKET_SERVER;
   memset(axl_socket_conn_ctx_array, 0, sizeof(axl_socket_conn_ctx_array));
 
@@ -211,13 +213,16 @@ int axl_socket_server_run(int port)
   if ( (rval = AXL_Init()) != AXL_SUCCESS)
     return rval;
 
+  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
   if ((rval = use_sigterm_to_exit()) != AXL_SUCCESS)
     return rval;
 
+  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
   if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
     AXL_ABORT(-1, "socket() failed: (%s)", strerror(errno));
   }
 
+  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
   if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
     AXL_ABORT(-1, "setsockopt() failed: (%s)", strerror(errno));
   }
@@ -226,10 +231,11 @@ int axl_socket_server_run(int port)
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons(port);
 
+  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
   if (bind(server_socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
     AXL_ABORT(-1, "bind() failed: (%s)", strerror(errno));
   }
-  fprintf(stdout, "Service bound to socket!\n");
+  fprintf(stderr, "Service bound to socket!\n");
 
   if (listen(server_socket, AXL_SOCKET_MAX_CLIENTS) < 0) {
     AXL_ABORT(-1, "listen() failed: (%s)", strerror(errno));
@@ -237,6 +243,7 @@ int axl_socket_server_run(int port)
 
   addrlen = sizeof(address);
 
+  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
   while (!time_to_leave) {
     FD_ZERO(&readfds);
     FD_SET(server_socket, &readfds);
@@ -250,6 +257,7 @@ int axl_socket_server_run(int port)
         max_sd = axl_socket_conn_ctx_array[i].sd;
     }
 
+    fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
     activity = select(max_sd + 1 , &readfds , NULL , NULL , NULL);
 
     if (time_to_leave)
@@ -261,6 +269,7 @@ int axl_socket_server_run(int port)
 
     if (FD_ISSET(server_socket, &readfds)) {
       AXL_DBG(1, "Accepting new incoming connection");
+      fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
       if ((new_socket = accept(server_socket, (struct sockaddr *)&address,
                                                 (socklen_t*)&addrlen)) < 0) {
         AXL_ABORT(-1, "accept() error: (%s)", strerror(errno));
@@ -272,9 +281,11 @@ int axl_socket_server_run(int port)
           break;
         }
       }
+      fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
       AXL_DBG(1, "Connection established");
     }
 
+    fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
     for ( int i = 0; i < AXL_SOCKET_MAX_CLIENTS; i++) {
       if (FD_ISSET(axl_socket_conn_ctx_array[i].sd , &readfds)) {
         axl_xfer_list = &axl_socket_conn_ctx_array[i].xfr;
@@ -285,6 +296,7 @@ int axl_socket_server_run(int port)
           axl_socket_conn_ctx_array[i].sd = 0;
           axl_free(&axl_xfer_list->axl_kvtrees);
           axl_xfer_list->axl_kvtrees_count = 0;
+          fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
         }
       }
     }

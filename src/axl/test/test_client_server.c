@@ -18,6 +18,7 @@ extern int axl_socket_server_run(int port);
 
 int run_service(int port)
 {
+	fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
 	fprintf(stdout, "Service Started!\n");
 	int rval = axl_socket_server_run(port);
 	fprintf(stdout, "Service Ending!\n");
@@ -36,6 +37,7 @@ int run_client()
 		}
 	}
 
+	fprintf(stderr, "Done with rval %i...\n", rval);
 	return rval;
 }
 
@@ -53,6 +55,7 @@ int main(int argc, char **argv)
 			fprintf(stderr, "Port number (%s) incorrect:\nUsage: test_client_server --<client|server> port\n", argv[2]);
 			return AXLCS_CLIENT_INVALID;
 		}
+		fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
 		return run_service(port);
 	}
 	else if (strcmp("--client", argv[1]) == 0) {
