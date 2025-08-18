@@ -16,7 +16,8 @@ def wait_for_completion(procname, proc, wait_time):
 
     print("{} Return Code: {}".format(procname, proc.returncode))
     print("stdout:\n{}".format(outs.decode("utf-8")))
-    print("stderr:\n{}".format(err.decode("utf-8")))
+    if isinstance(err, bytes):
+        print("stderr:\n{}".format(err.decode("utf-8")))
 
     return proc.returncode, outs, err
 
