@@ -193,7 +193,7 @@ ssize_t axl_read(const char* file, int fd, void* buf, unsigned long size)
     ssize_t n = 0;
     int retries = 10;
     while (n < size) {
-        int rc = read(fd, (char*) buf + n, size - n);
+        ssize_t rc = read(fd, (char*) buf + n, size - n);
         if (rc  > 0) {
             n += rc;
         } else if (rc == 0) {

@@ -19,7 +19,7 @@ extern int axl_socket_server_run(int port);
 int run_service(int port)
 {
 	fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
-	fprintf(stdout, "Service Started!\n");
+	fprintf(stdout, "Service Starting!\n");
 	int rval = axl_socket_server_run(port);
 	fprintf(stdout, "Service Ending!\n");
 	return rval;

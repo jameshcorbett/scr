@@ -22,6 +22,7 @@ extern axl_socket_RunMode axl_service_mode;
 
 typedef enum {
    AXL_SOCKET_AXL_CONFIG_SET = 0,     /* payload is config kvtree hash buffer */
+   AXL_SOCKET_INFO,
 } axl_socket_request_t;
 
 typedef struct {

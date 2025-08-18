@@ -20,6 +20,9 @@ axl_socket_RunMode axl_service_mode = AXL_SOCKET_DISABLED;
 
 static int axl_socket_socket = -1;
 
+#define LOG() fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__)
+
+
 /*
  * Client implementation
  */
@@ -46,6 +49,16 @@ int axl_socket_client_init(char* host, unsigned short port)
   if ( connect(axl_socket_socket, (struct sockaddr *)&server, sizeof(server) ) < 0) {
     AXL_ERR("connect() failed: (%s)", strerror(errno));
     close(axl_socket_socket);
+    return 0;
+  }
+
+  const char *message = "hello foo bar baz\n\n";
+  axl_socket_Request req;
+  req.request = AXL_SOCKET_INFO;
+  req.payload_length = strlen(message);
+  size_t len = strlen(message);
+  if (send(axl_socket_socket, &req, sizeof(axl_socket_Request), 0) < sizeof(axl_socket_Request)
+    || send(axl_socket_socket, message, len, 0) < len) {
     return 0;
   }
 
@@ -127,6 +140,7 @@ static kvtree* service_request_AXL_Config_Set(int sd)
 }
 #endif
 
+
 static ssize_t axl_socket_request_from_client(int sd)
 {
   ssize_t bytecount;
@@ -134,7 +148,8 @@ static ssize_t axl_socket_request_from_client(int sd)
   axl_socket_Response response;
   char* buffer;
 
-  bytecount = axl_read("AXLSVC Client Reqeust", sd, &req, sizeof(req));
+  LOG();
+  bytecount = axl_read("AXLSVC Client Request", sd, &req, sizeof(req));
 
   if (bytecount == 0) {
     AXL_DBG(2, "Client for socket %d closed", sd);
@@ -143,14 +158,17 @@ static ssize_t axl_socket_request_from_client(int sd)
 
   buffer = malloc(req.payload_length);
 
-  bytecount = axl_read("AXLSVC Reqeust Payload", sd, &buffer, req.payload_length);
+  bytecount = axl_read("AXLSVC Request Payload", sd, buffer, req.payload_length);
 
   if (bytecount != req.payload_length) {
-    AXL_ABORT(-1, "Unexpected Payload Length: Expected %d, Got %d", req.payload_length, bytecount);
+    AXL_ABORT(-1, "Unexpected Payload Length: Expected %zd, Got %zd", req.payload_length, bytecount);
   }
+  fprintf(stderr, "received a payload of %zd bytes\n", bytecount);
+  fprintf(stderr, "Request type is %d\n", req.request);
 
   switch (req.request) {
     case AXL_SOCKET_AXL_CONFIG_SET:
+      LOG();
       AXL_DBG(1, "AXL_SOCKET_AXL_CONFIG_SET(kfile=%s", buffer);
       response.response = AXL_SOCKET_SUCCESS;
       response.payload_length = 0;
@@ -159,6 +177,11 @@ static ssize_t axl_socket_request_from_client(int sd)
         AXL_ABORT(-1, "Unexpected Write Response to client: Expected %d, Got %d",
                       sizeof(response), bytecount);
       }
+      break;
+    case AXL_SOCKET_INFO:
+      LOG();
+      buffer[req.payload_length - 1] = '\0';
+      fprintf(stderr, "Received %s", buffer);
       break;
     default:
       AXL_ABORT(-1, "AXLSVC Unknown Request Type %d", req.request);
@@ -202,7 +225,8 @@ int axl_socket_server_run(int port)
   int max_sd;
   int rval = AXL_FAILURE;
 
-  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+
+  LOG();
 
   axl_service_mode = AXL_SOCKET_SERVER;
   memset(axl_socket_conn_ctx_array, 0, sizeof(axl_socket_conn_ctx_array));
@@ -213,16 +237,16 @@ int axl_socket_server_run(int port)
   if ( (rval = AXL_Init()) != AXL_SUCCESS)
     return rval;
 
-  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+  LOG();
   if ((rval = use_sigterm_to_exit()) != AXL_SUCCESS)
     return rval;
 
-  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+  LOG();
   if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
     AXL_ABORT(-1, "socket() failed: (%s)", strerror(errno));
   }
 
-  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+  LOG();
   if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
     AXL_ABORT(-1, "setsockopt() failed: (%s)", strerror(errno));
   }
@@ -231,7 +255,7 @@ int axl_socket_server_run(int port)
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons(port);
 
-  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+  LOG();
   if (bind(server_socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
     AXL_ABORT(-1, "bind() failed: (%s)", strerror(errno));
   }
@@ -243,7 +267,7 @@ int axl_socket_server_run(int port)
 
   addrlen = sizeof(address);
 
-  fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+  LOG();
   while (!time_to_leave) {
     FD_ZERO(&readfds);
     FD_SET(server_socket, &readfds);
@@ -257,7 +281,7 @@ int axl_socket_server_run(int port)
         max_sd = axl_socket_conn_ctx_array[i].sd;
     }
 
-    fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+    LOG();
     activity = select(max_sd + 1 , &readfds , NULL , NULL , NULL);
 
     if (time_to_leave)
@@ -269,7 +293,7 @@ int axl_socket_server_run(int port)
 
     if (FD_ISSET(server_socket, &readfds)) {
       AXL_DBG(1, "Accepting new incoming connection");
-      fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+      LOG();
       if ((new_socket = accept(server_socket, (struct sockaddr *)&address,
                                                 (socklen_t*)&addrlen)) < 0) {
         AXL_ABORT(-1, "accept() error: (%s)", strerror(errno));
@@ -281,11 +305,11 @@ int axl_socket_server_run(int port)
           break;
         }
       }
-      fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+      LOG();
       AXL_DBG(1, "Connection established");
     }
 
-    fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+    LOG();
     for ( int i = 0; i < AXL_SOCKET_MAX_CLIENTS; i++) {
       if (FD_ISSET(axl_socket_conn_ctx_array[i].sd , &readfds)) {
         axl_xfer_list = &axl_socket_conn_ctx_array[i].xfr;
@@ -296,7 +320,7 @@ int axl_socket_server_run(int port)
           axl_socket_conn_ctx_array[i].sd = 0;
           axl_free(&axl_xfer_list->axl_kvtrees);
           axl_xfer_list->axl_kvtrees_count = 0;
-          fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__);
+          LOG();
         }
       }
     }

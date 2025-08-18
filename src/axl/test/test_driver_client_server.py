@@ -5,6 +5,7 @@ import subprocess as sp
 import os
 import pathlib
 import time
+import signal
 
 
 def wait_for_completion(procname, proc, wait_time):
@@ -15,8 +16,11 @@ def wait_for_completion(procname, proc, wait_time):
         outs, err = proc.communicate()
 
     print("{} Return Code: {}".format(procname, proc.returncode))
+    if proc.returncode < 0:
+        print(f"Process killed by signal: {signal.strsignal(-proc.returncode)}")
     print("stdout:\n{}".format(outs.decode("utf-8")))
-    print("stderr:\n{}".format(err.decode("utf-8")))
+    if isinstance(err, bytes):
+        print("stderr:\n{}".format(err.decode("utf-8")))
 
     return proc.returncode, outs, err
 
@@ -50,10 +54,7 @@ def main():
     client_ecode, client_out, client_err = wait_for_completion("axl_client", client, 30)
     server_ecode, server_out, server_err = wait_for_completion("axl_server", server, 2)
 
-    if server_ecode != 0 or client_ecode != 0:
-        errors = server_ecode + client_ecode
-
-    sys.exit(errors)
+    sys.exit(server_ecode + client_ecode)
 
 
 if __name__ == "__main__":
