@@ -300,6 +300,8 @@ int AXL_Init (void)
 
                     if (axl_socket_client_init(axl_service_host, (unsigned short)axl_service_port)) {
                         axl_service_mode = AXL_SOCKET_CLIENT;
+                    } else {
+                        rc = AXL_FAILURE;
                     }
                 }
                 free(axl_service_host);

@@ -7,6 +7,8 @@
 #include <stdlib.h>
 
 #include "axl.h"
+#include "kvtree.h"
+#include "kvtree_util.h"
 
 #define AXLCS_SUCCESS					0
 #define AXLCS_CLIENT_INVALID			1
@@ -25,16 +27,56 @@ int run_service(int port)
 	return rval;
 }
 
+int set_global_options (void) {
+	int rc = 0;
+	kvtree* axl_config_values = NULL;
+	if (!(axl_config_values = kvtree_new())) {
+		return -1;
+	}
+
+	/* check AXL configuration settings */
+	rc = kvtree_util_set_bytecount(axl_config_values,
+								   AXL_KEY_CONFIG_FILE_BUF_SIZE,
+								   4200000);
+	if (rc != KVTREE_SUCCESS) {
+		printf("kvtree_util_set_bytecount failed (error %d)\n", rc);
+		goto done;
+	}
+
+	rc = kvtree_util_set_int(axl_config_values, AXL_KEY_CONFIG_DEBUG,
+							 10);
+	if (rc != KVTREE_SUCCESS) {
+		printf("kvtree_util_set_int failed (error %d)\n", rc);
+		goto done;
+	}
+
+	printf("Configuring AXL (first set of options)...\n");
+	if (AXL_Config(axl_config_values) == NULL) {
+		printf("AXL_Config() failed\n");
+		rc = -1;
+		goto done;
+	}
+
+done:
+	kvtree_delete(&axl_config_values);
+	return rc;
+}
+
+
+
 int run_client()
 {
 	int rval;
 
 	if ((rval = AXL_Init()) != AXL_SUCCESS) {
 		fprintf(stderr, "Call to AXL_Init failed with code: %d\n", rval);
-	} else {
-		if ((rval = AXL_Finalize()) != AXL_SUCCESS) {
-			fprintf(stderr, "Call to AXL_Init failed with code: %d\n", rval);
-		}
+		return rval;
+	}
+	if (set_global_options() < 0) {
+		return 1;
+	}
+	if ((rval = AXL_Finalize()) != AXL_SUCCESS) {
+		fprintf(stderr, "Call to AXL_Init failed with code: %d\n", rval);
 	}
 
 	fprintf(stderr, "Done with rval %i...\n", rval);

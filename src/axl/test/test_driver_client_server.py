@@ -43,18 +43,19 @@ def main():
     )
     time.sleep(2)  # Give server a chance to start
 
-    client = sp.Popen(
-        [test_file, "--client", port],
-        env=dict(os.environ, **test_env),
-        stdout=sp.PIPE,
-        stderr=sp.PIPE,
-    )
+    clients = []
+    for client_message in ("foo bar baz", "hello hola bonjour buongiorno", "test test test", "a b c"):
+        clients.append(sp.Popen(
+            [test_file, "--client", port],
+            env=dict(os.environ, AXL_SOCKET_MESSAGE=client_message, **test_env),
+            stdout=sp.PIPE,
+            stderr=sp.PIPE,
+        ))
 
-    # Wait for the client then the server to finish
-    client_ecode, client_out, client_err = wait_for_completion("axl_client", client, 30)
+    client_ecode = max(abs(wait_for_completion("axl_client", client, 30)[0]) for client in clients)
     server_ecode, server_out, server_err = wait_for_completion("axl_server", server, 2)
 
-    sys.exit(server_ecode + client_ecode)
+    sys.exit(max(abs(server_ecode), client_ecode))
 
 
 if __name__ == "__main__":
