@@ -77,6 +77,42 @@ void axl_socket_client_AXL_Finalize()
 }
 
 /*
+ * Send a kvtree through `axl_socket_socket`.
+ */
+static int axl_socket_send_kvtree(axl_socket_Request* request, const kvtree* msg)
+{
+  ssize_t bytecount;
+  char *buf;
+
+  request->payload_length = (ssize_t)kvtree_pack_size(msg);
+  bytecount = axl_write_attempt("AXLSVC send_kvtree header",
+                                  axl_socket_socket, request, sizeof(*request));
+
+  if (bytecount != sizeof(*request)) {
+    AXL_ERR("Unexpected Write Response to server: Expected %zu, Got %zd",
+                  sizeof(*request), bytecount);
+    return -1;
+  }
+  buf = malloc(request->payload_length);
+  if ((bytecount = kvtree_pack(buf, msg)) != request->payload_length) {
+    free(buf);
+    AXL_ERR("Unexpected kvtree_pack: Expected %zu, Got %zd",
+                  request->payload_length, bytecount);
+    return -1;
+  }
+  bytecount = axl_write_attempt("AXLSVC send_kvtree payload",
+                                  axl_socket_socket, buf, request->payload_length);
+
+  free(buf);
+  if (bytecount != request->payload_length) {
+    AXL_ERR("Unexpected Write Response to server: Expected %zd, Got %zd",
+                  request->payload_length, bytecount);
+    return -1;
+  }
+  return 0;
+}
+
+/*
  * function to perform client-side request to server for AXL_Config_Set
  */
 void axl_socket_client_AXL_Config_Set(const kvtree* config)
@@ -84,33 +120,10 @@ void axl_socket_client_AXL_Config_Set(const kvtree* config)
   ssize_t bytecount;
   axl_socket_Request request;
   axl_socket_Response response;
-  char *buf;
 
   request.request = AXL_SOCKET_AXL_CONFIG_SET;
-  request.payload_length = (ssize_t)kvtree_pack_size(config);
-
-  bytecount = axl_write_attempt("AXLSVC Client --> AXL_Config_Set_1",
-                                  axl_socket_socket, &request, sizeof(request));
-
-  if (bytecount != sizeof(request)) {
-    AXL_ABORT(-1, "Unexpected Write Response to server: Expected %zu, Got %zd",
-                  sizeof(request), bytecount);
-  }
-  buf = malloc(request.payload_length);
-
-  bytecount = kvtree_pack(buf, config);
-  if (bytecount != request.payload_length) {
-    free(buf);
-    AXL_ABORT(-1, "Unexpected Write Response to server: Expected %zu, Got %zd",
-                  sizeof(request), bytecount);
-  }
-  bytecount = axl_write_attempt("AXLSVC Client --> AXL_Config_Set_2",
-                                  axl_socket_socket, buf, request.payload_length);
-
-  free(buf);
-  if (bytecount != request.payload_length) {
-    AXL_ABORT(-1, "Unexpected Write Response to server: Expected %zd, Got %zd",
-                  request.payload_length, bytecount);
+  if (axl_socket_send_kvtree(&request, config) != AXL_SUCCESS){
+    AXL_ABORT(-1, "axl_socket_send_kvtree");
   }
 
   bytecount = axl_read("AXLSVC Client <-- Response",
@@ -138,18 +151,19 @@ struct axl_socket_conn_ctx {
   struct axl_transfer_array xfr;  /* Pointer to client-specific xfer array */
 } axl_socket_conn_ctx_array[AXL_SOCKET_MAX_CLIENTS];
 
-#if 0
-static kvtree* service_request_AXL_Config_Set(int sd)
-{
-  kvtree* config = kvtree_new();
-  kvtree* rval;
-  ssize_t bytecount;
 
-  bytecount = kvtree_read_fd("Service_AXL_Config_Set", sd, config);
-
-  return bytecount;
+static kvtree *axl_socket_recv_kvtree (const char *buf, size_t bytecount) {
+  kvtree* tree = kvtree_new();
+  size_t unpacked = kvtree_unpack(buf, tree);
+  if (unpacked <= 0 || unpacked != bytecount) {
+    kvtree_delete (&tree);
+    AXL_ERR("Failed to unpack kvtree, got %zu bytes, expected %zu", unpacked, bytecount);
+    return NULL;
+  }
+  fprintf(stderr, "printing kvtree to stdout");
+  kvtree_print (tree, 2);
+  return tree;
 }
-#endif
 
 
 static ssize_t axl_socket_request_from_client(int sd)
@@ -180,19 +194,17 @@ static ssize_t axl_socket_request_from_client(int sd)
   switch (req.request) {
     case AXL_SOCKET_AXL_CONFIG_SET:
       LOG();
-      buffer[req.payload_length - 1] = '\0';
-      for (int i = 0; i < req.payload_length - 1; ++i)
-      {
-        if (buffer[i] == '\0') {
-          buffer[i] = '0';
-        }
+
+      kvtree *config;
+      if (!(config = axl_socket_recv_kvtree (buffer, bytecount))) {
+        AXL_ABORT(-1, "axl_socket_recv_kvtree");
       }
-      AXL_DBG(1, "AXL_SOCKET_AXL_CONFIG_SET(kfile=%s)\n", buffer);
+      kvtree_delete (&config);
       response.response = AXL_SOCKET_SUCCESS;
       response.payload_length = 0;
       bytecount = axl_write_attempt("AXLSVC Response to Client", sd, &response, sizeof(response));
       if (bytecount != sizeof(response)) {
-        AXL_ABORT(-1, "Unexpected Write Response to client: Expected %d, Got %d",
+        AXL_ABORT(-1, "Unexpected Write Response to client: Expected %zu, Got %zd",
                       sizeof(response), bytecount);
       }
       break;
