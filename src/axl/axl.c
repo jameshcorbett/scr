@@ -1064,6 +1064,15 @@ int __AXL_Dispatch (int id, int resume)
         return AXL_FAILURE;
     }
 
+    if (axl_service_mode == AXL_SOCKET_CLIENT) {
+        if (axl_socket_client_AXL_Dispatch (file_list) != AXL_SUCCESS){
+            AXL_ERR("axl_socket_client_AXL_Dispatch");
+        } else {
+            return AXL_SUCCESS;
+        }
+    } // else {
+    //     return AXL_SUCCESS;
+    // }
     if (resume) {
         switch (xstate) {
         case AXL_XFER_STATE_NULL:

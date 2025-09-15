@@ -62,7 +62,35 @@ done:
 	return rc;
 }
 
+int transfer_file (void) {
+	int axl_id;
+	const char *source_path;
+	char dest_path[4096];
+	if ((source_path = getenv("AXL_SOCKET_TRANSFER")) == NULL
+		|| snprintf(dest_path, sizeof(dest_path), "%s_dest", source_path) >= sizeof(dest_path) - 1) {
+		printf("ERROR: fetching source and dest file paths");
+		return -1;
+	}
 
+	if ((axl_id = AXL_Create (AXL_XFER_DEFAULT, "socket transfer demo", NULL)) < 0) {
+		printf("AXL_Create returned %d", axl_id);
+		return -1;
+	}
+	if (AXL_Add(axl_id, source_path, dest_path) < 0) {
+		printf ("ERROR: AXL_Add\n");
+		goto error;
+	}
+	if (AXL_Dispatch(axl_id) != AXL_SUCCESS){
+		printf ("ERROR: AXL_Dispatch\n");
+		goto error;
+	}
+	AXL_Free(axl_id);
+	return 0;
+
+error:
+	AXL_Stop();
+	return -1;
+}
 
 int run_client()
 {
@@ -72,8 +100,9 @@ int run_client()
 		fprintf(stderr, "Call to AXL_Init failed with code: %d\n", rval);
 		return rval;
 	}
-	if (set_global_options() < 0) {
-		return 1;
+	if ((rval = set_global_options()) < 0
+		|| (rval = transfer_file()) < 0) {
+		return rval;
 	}
 	if ((rval = AXL_Finalize()) != AXL_SUCCESS) {
 		fprintf(stderr, "Call to AXL_Init failed with code: %d\n", rval);
