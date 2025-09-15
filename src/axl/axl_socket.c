@@ -20,7 +20,7 @@ axl_socket_RunMode axl_service_mode = AXL_SOCKET_DISABLED;
 
 static int axl_socket_socket = -1;
 
-#define LOG() fprintf(stderr, "%s, %i...\n", __FILE__, __LINE__)
+#define LOG() fprintf(stderr, "%s: in %s, line %i...\n", __func__, __FILE__, __LINE__)
 
 
 /*
@@ -89,7 +89,7 @@ static int axl_socket_send_kvtree(axl_socket_Request* request, const kvtree* msg
                                   axl_socket_socket, request, sizeof(*request));
 
   if (bytecount != sizeof(*request)) {
-    AXL_ERR("Unexpected Write Response to server: Expected %zu, Got %zd",
+    AXL_ERR("Unexpected write response to server: Expected %zu, Got %zd",
                   sizeof(*request), bytecount);
     return -1;
   }
@@ -105,7 +105,7 @@ static int axl_socket_send_kvtree(axl_socket_Request* request, const kvtree* msg
 
   free(buf);
   if (bytecount != request->payload_length) {
-    AXL_ERR("Unexpected Write Response to server: Expected %zd, Got %zd",
+    AXL_ERR("Unexpected write response to server: Expected %zd, Got %zd",
                   request->payload_length, bytecount);
     return -1;
   }
@@ -178,7 +178,7 @@ static kvtree *axl_socket_recv_kvtree (const char *buf, size_t bytecount) {
     AXL_ERR("Failed to unpack kvtree, got %zu bytes, expected %zu", unpacked, bytecount);
     return NULL;
   }
-  fprintf(stderr, "printing kvtree to stdout");
+  fprintf(stderr, "printing kvtree to stdout\n");
   kvtree_print (tree, 2);
   return tree;
 }
