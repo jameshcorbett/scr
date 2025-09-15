@@ -113,30 +113,40 @@ static int axl_socket_send_kvtree(axl_socket_Request* request, const kvtree* msg
 }
 
 /*
- * function to perform client-side request to server for AXL_Config_Set
+ *
  */
-void axl_socket_client_AXL_Config_Set(const kvtree* config)
+int axl_socket_client_send_and_receive(const kvtree* to_send, int request_type)
 {
   ssize_t bytecount;
   axl_socket_Request request;
   axl_socket_Response response;
 
-  request.request = AXL_SOCKET_AXL_CONFIG_SET;
-  if (axl_socket_send_kvtree(&request, config) != AXL_SUCCESS){
-    AXL_ABORT(-1, "axl_socket_send_kvtree");
+  request.request = request_type;
+  if (axl_socket_send_kvtree(&request, to_send) != AXL_SUCCESS){
+    AXL_ERR("axl_socket_send_kvtree");
+    return -1;
   }
 
   bytecount = axl_read("AXLSVC Client <-- Response",
                                   axl_socket_socket, &response, sizeof(response));
 
-  if (bytecount != sizeof(response)) {
-    AXL_ABORT(-1, "Unexpected Write Response to server: Expected %zu, Got %d",
+  if (bytecount != sizeof(response)
+      || response.response != AXL_SOCKET_SUCCESS
+    ) {
+    AXL_ERR("Unexpected response from server: Expected %zu, Got %d",
                   sizeof(response), bytecount);
+    return -1;
   }
 
-  if (response.response != AXL_SOCKET_SUCCESS) {
-    AXL_ABORT(-1, "Unexpected Response from server: %d", response.response);
-  }
+  return AXL_SUCCESS;
+}
+
+/*
+ * function to perform client-side request to server for AXL_Config_Set
+ */
+int axl_socket_client_AXL_Config_Set(const kvtree* config)
+{
+  return axl_socket_client_send_and_receive(config, AXL_SOCKET_AXL_CONFIG_SET);
 }
 
 /* 

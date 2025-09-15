@@ -50,7 +50,7 @@ void axl_socket_client_AXL_Finalize();
 /*
  * function to perform client-side request to server for AXL_Config_Set
  */
-void axl_socket_client_AXL_Config_Set(const kvtree* config);
+int axl_socket_client_AXL_Config_Set(const kvtree* config);
 
 int axl_socket_server_run(int port);
 
