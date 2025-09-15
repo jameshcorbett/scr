@@ -499,8 +499,9 @@ static kvtree* AXL_Config_Set(const kvtree* config)
         }
     }
 
-    if (axl_service_mode == AXL_SOCKET_CLIENT) {
-        axl_socket_client_AXL_Config_Set(config);
+    if (axl_service_mode == AXL_SOCKET_CLIENT
+        && axl_socket_client_AXL_Config_Set(config) != AXL_SUCCESS) {
+        retval = NULL;
     }
 
     return retval;
