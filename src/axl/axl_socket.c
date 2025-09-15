@@ -149,6 +149,14 @@ int axl_socket_client_AXL_Config_Set(const kvtree* config)
   return axl_socket_client_send_and_receive(config, AXL_SOCKET_AXL_CONFIG_SET);
 }
 
+/*
+ * function to perform client-side request to server for file transfer
+ */
+int axl_socket_client_AXL_Dispatch(const kvtree* file_list)
+{
+  return axl_socket_client_send_and_receive(file_list, AXL_SOCKET_FILE_TRANSFER);
+}
+
 /* 
  * Server Implementation
  */
@@ -176,24 +184,29 @@ static kvtree *axl_socket_recv_kvtree (const char *buf, size_t bytecount) {
 }
 
 
-static ssize_t axl_socket_request_from_client(int sd)
+static ssize_t axl_socket_request_from_client(struct axl_socket_conn_ctx *conn_ctx)
 {
   ssize_t bytecount;
   axl_socket_Request req;
   axl_socket_Response response;
   char* buffer;
+  kvtree *kvtree_msg;
 
   LOG();
-  bytecount = axl_read("AXLSVC Client Request", sd, &req, sizeof(req));
+  if (!conn_ctx){
+    AXL_ERR("axl_socket_request_from_client: NULL conn_ctx");
+    return -1;
+  }
+  bytecount = axl_read("AXLSVC Client Request", conn_ctx->sd, &req, sizeof(req));
 
   if (bytecount == 0) {
-    AXL_DBG(2, "Client for socket %d closed", sd);
+    AXL_DBG(2, "Client for socket %d closed", conn_ctx->sd);
     return bytecount;
   }
 
   buffer = malloc(req.payload_length);
 
-  bytecount = axl_read("AXLSVC Request Payload", sd, buffer, req.payload_length);
+  bytecount = axl_read("AXLSVC Request Payload", conn_ctx->sd, buffer, req.payload_length);
 
   if (bytecount != req.payload_length) {
     AXL_ABORT(-1, "Unexpected Payload Length: Expected %zd, Got %zd", req.payload_length, bytecount);
@@ -203,18 +216,17 @@ static ssize_t axl_socket_request_from_client(int sd)
 
   switch (req.request) {
     case AXL_SOCKET_AXL_CONFIG_SET:
-      LOG();
 
-      kvtree *config;
-      if (!(config = axl_socket_recv_kvtree (buffer, bytecount))) {
+      LOG();
+      if (!(kvtree_msg = axl_socket_recv_kvtree (buffer, bytecount))) {
         AXL_ABORT(-1, "axl_socket_recv_kvtree");
       }
-      kvtree_delete (&config);
+      kvtree_delete (&kvtree_msg);
       response.response = AXL_SOCKET_SUCCESS;
       response.payload_length = 0;
-      bytecount = axl_write_attempt("AXLSVC Response to Client", sd, &response, sizeof(response));
+      bytecount = axl_write_attempt("AXLSVC Response to Client", conn_ctx->sd, &response, sizeof(response));
       if (bytecount != sizeof(response)) {
-        AXL_ABORT(-1, "Unexpected Write Response to client: Expected %zu, Got %zd",
+        AXL_ABORT(-1, "Unexpected write response to client: Expected %zu, Got %zd",
                       sizeof(response), bytecount);
       }
       break;
@@ -222,6 +234,44 @@ static ssize_t axl_socket_request_from_client(int sd)
       LOG();
       buffer[req.payload_length - 1] = '\0';
       fprintf(stderr, "Received %s", buffer);
+      break;
+    case AXL_SOCKET_FILE_TRANSFER:
+
+      // int axl_id;
+      LOG();
+      fprintf(stderr, "received file transfer message\n");
+      if (!(kvtree_msg = axl_socket_recv_kvtree (buffer, bytecount))) {
+        AXL_ABORT(-1, "axl_socket_recv_kvtree");
+      }
+
+      int id = conn_ctx->xfr.axl_kvtrees_count;
+      conn_ctx->xfr.axl_kvtrees_count++;
+
+      conn_ctx->xfr.axl_kvtrees = realloc(conn_ctx->xfr.axl_kvtrees, sizeof(struct kvtree*) * conn_ctx->xfr.axl_kvtrees_count);
+      conn_ctx->xfr.axl_kvtrees[id] = kvtree_msg;
+
+      if (AXL_Dispatch (id) != AXL_SUCCESS
+        || AXL_Wait (id) != AXL_SUCCESS) {
+        AXL_ERR ("AXL_Dispatch || AXL_WAIT");
+      }
+      // if ((axl_id = AXL_Create (AXL_XFER_DEFAULT, "socket transfer demo", NULL)) < 0) {
+      //   printf("AXL_Create returned %d", axl_id);
+      //   return -1;
+      // }
+      // if (AXL_Dispatch(axl_id) != AXL_SUCCESS
+      //   || AXL_Wait (axl_id) != AXL_SUCCESS){
+      //   printf ("AXL_Dispatch || AXL_Wait");
+      //   goto error;
+      // }
+      // AXL_Free(axl_id);
+      // kvtree_delete (&kvtree_msg);
+      response.response = AXL_SOCKET_SUCCESS;
+      response.payload_length = 0;
+      bytecount = axl_write_attempt("AXLSVC Response to Client", conn_ctx->sd, &response, sizeof(response));
+      if (bytecount != sizeof(response)) {
+        AXL_ABORT(-1, "Unexpected write response to client: Expected %zu, Got %zd",
+                      sizeof(response), bytecount);
+      }
       break;
     default:
       AXL_ABORT(-1, "AXLSVC Unknown Request Type %d", req.request);
@@ -354,13 +404,17 @@ int axl_socket_server_run(int port)
       if (FD_ISSET(axl_socket_conn_ctx_array[i].sd , &readfds)) {
         axl_xfer_list = &axl_socket_conn_ctx_array[i].xfr;
 
-        if (axl_socket_request_from_client(axl_socket_conn_ctx_array[i].sd) == 0) {
+        int socket_request_rc = -1;
+        if ((socket_request_rc = axl_socket_request_from_client(&axl_socket_conn_ctx_array[i])) == 0) {
           AXL_DBG(1, "Closing server side socket(%d) to client", axl_socket_conn_ctx_array[i].sd);
           close(axl_socket_conn_ctx_array[i].sd);
           axl_socket_conn_ctx_array[i].sd = 0;
           axl_free(&axl_xfer_list->axl_kvtrees);
           axl_xfer_list->axl_kvtrees_count = 0;
           LOG();
+        }
+        else if (socket_request_rc < 0){
+          AXL_ERR ("axl_socket_request_from_client");
         }
       }
     }

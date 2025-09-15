@@ -23,6 +23,7 @@ extern axl_socket_RunMode axl_service_mode;
 typedef enum {
    AXL_SOCKET_AXL_CONFIG_SET = 0,     /* payload is config kvtree hash buffer */
    AXL_SOCKET_INFO,
+   AXL_SOCKET_FILE_TRANSFER,
 } axl_socket_request_t;
 
 typedef struct {
@@ -51,6 +52,8 @@ void axl_socket_client_AXL_Finalize();
  * function to perform client-side request to server for AXL_Config_Set
  */
 int axl_socket_client_AXL_Config_Set(const kvtree* config);
+
+int axl_socket_client_AXL_Dispatch(const kvtree* file_list);
 
 int axl_socket_server_run(int port);
 
