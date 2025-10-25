@@ -30,8 +30,8 @@ jobs:
       TAP_DRIVER_QUIET: 1
       FLUX_TEST_TIMEOUT: 300
       DOCKER_REPO: libscr/scr
-      DOCKER_USERNAME: travisflux
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_TRAVISFLUX_TOKEN }}
+      DOCKER_USERNAME: libscr
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
@@ -93,8 +93,8 @@ jobs:
     needs: [ci-checks]
     env:
       DOCKER_REPO: libscr/scr
-      DOCKER_USERNAME: travisflux
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_TRAVISFLUX_TOKEN }}
+      DOCKER_USERNAME: libscr
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - name: make and push manifest as libscr/scr
