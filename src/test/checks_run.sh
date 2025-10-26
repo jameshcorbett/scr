@@ -42,7 +42,7 @@ module load mpi
 if mpirun -V | grep "Open MPI"; then
   # without this flag, in GitHub Action Runners, mpirun will complain that there
   # aren't enough resources
-  ARGS="-DMPIRUN_FLAGS='--map-by :OVERSUBSCRIBE' ${ARGS}"
+  ARGS="-DMPIRUN_FLAGS=--use-hwthread-cpus ${ARGS}"
 fi
 
 
