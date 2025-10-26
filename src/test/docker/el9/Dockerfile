@@ -36,14 +36,13 @@ RUN dnf -y install 'dnf-command(config-manager)' \
 	ninja-build \
 	cmake \
 	gcc-c++ \
-	mpi \
-	mpi-devel \
+	openmpi \
+	openmpi-devel \
 	environment-modules \
 	zlib-devel \
 	pdsh \
 #  Python
 	python3-devel \
-	mpich-devel \
  && dnf clean all
 
 #  Set default /usr/bin/python to python3
